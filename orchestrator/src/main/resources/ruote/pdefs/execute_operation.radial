@@ -3,19 +3,23 @@ define execute_operation
 
     set "v:plugin_verification_task": "cosmo.cloudify.tosca.artifacts.plugin.plugin_installer.tasks.verify_plugin"
     repeat
-        log message: 'verifying plugin: ${plugin_name} and operation ${operation} is installed on target and fetching
-         the operation argument names: ${target}'
+        log message: 'verifying plugin: ${operation} is installed on target'
         execute_task target: '${target}', exec: "${v:plugin_verification_task}", payload: {
             properties: {
                 worker_id: "${worker_id}",
-                plugin_name: "${plugin_name}",
                 operation: "${operation}"
             }
-        }, to_f: 'argument_names', timeout: '30s', on_timeout: 'redo'
-        log message: 'plugin verification argument names fetching result for ${plugin_name} on ${target} is:
-        ${argument_names}'
-        break if: '${argument_names} != False'
+        }, argument_names: "['worker_id', 'operation']" , to_f: 'verified', timeout: '30s', on_timeout: 'redo'
+        log message: 'plugin verification result for ${operation} on ${target} is: ${verified}'
+        break if: '${verified} == True'
         wait for: '5s'
+
+    set "v:get_operation_args_task": "cosmo.cloudify.tosca.artifacts.plugin.plugin_installer.tasks.get_operation_args"
+    execute_task target: '${target}', exec: '${v:get_operation_args_task}', payload: {
+        properties: {
+            operation: "${operation}"
+        }
+    }, argument_names: "['operation']", to_f: 'argument_names'
 
     execute_task target: '${target}', exec: '${operation}', payload: {
         properties: '$node.properties',
